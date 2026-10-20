@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis Hábitos</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Quicksand', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-700 min-h-screen pb-24 transition-colors duration-300" id="bodyTag">
+
+    <!-- CONTENEDOR PRINCIPAL -->
+    <div class="max-w-md mx-auto p-4">
+        
+        <!-- VENTANA 1: HÁBITOS -->
+        <div id="viewHabits" class="space-y-4">
+            <!-- Cabecera -->
+            <header class="flex justify-between items-center pt-2 mb-2">
+                <div>
+                    <h1 class="text-2xl font-bold tracking-tight">Mis Hábitos</h1>
+                    <p class="text-xs text-slate-400" id="currentDateSubtitle"></p>
+                </div>
+                <button onclick="openModal()" class="w-10 h-10 rounded-2xl bg-indigo-600 text-white shadow-md font-bold text-xl flex items-center justify-center transition hover:scale-105">
+                    +
+                </button>
+            </header>
+
+            <!-- Filtros de Categorías -->
+            <div class="flex gap-2 overflow-x-auto pb-1 scrollbar-none" id="categoryFilters">
+                <button onclick="filterCategory('todos')" class="cat-pill px-3.5 py-1.5 rounded-full text-xs font-semibold bg-indigo-600 text-white shadow-sm transition whitespace-nowrap">Todos</button>
+                <button onclick="filterCategory('Salud')" class="cat-pill px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white border border-slate-200 text-slate-600 shadow-sm transition whitespace-nowrap">Salud</button>
+                <button onclick="filterCategory('Estudio')" class="cat-pill px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white border border-slate-200 text-slate-600 shadow-sm transition whitespace-nowrap">Estudio</button>
+                <button onclick="filterCategory('Productividad')" class="cat-pill px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white border border-slate-200 text-slate-600 shadow-sm transition whitespace-nowrap">Productividad</button>
+                <button onclick="filterCategory('Personal')" class="cat-pill px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white border border-slate-200 text-slate-600 shadow-sm transition whitespace-nowrap">Personal</button>
+            </div>
+
+            <!-- Lista de Hábitos en Barras -->
+            <div id="habitsList" class="space-y-3"></div>
+
+            <!-- Estado vacío -->
+            <div id="emptyState" class="hidden text-center py-16">
+                <p class="text-sm font-medium text-slate-400">No hay hábitos aún. ¡Pulsa + para añadir uno!</p>
+            </div>
+        </div>
+
+        <!-- VENTANA 2: ESTADÍSTICAS -->
+        <div id="viewStats" class="space-y-4 hidden">
+            <header class="pt-2 mb-4">
+                <h1 class="text-2xl font-bold tracking-tight">Estadísticas</h1>
+                <p class="text-xs text-slate-400">Tendencias de cumplimiento</p>
+            </header>
+
+            <div class="bg-white p-4 rounded-3xl border border-slate-100 shadow-xs space-y-4">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Gráfica de Líneas</span>
+                    <div class="flex gap-1 bg-slate-100 p-1 rounded-xl">
+                        <button onclick="changeStatsZoom('week')" id="statsBtnWeek" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-white shadow-xs transition">Semana</button>
+                        <button onclick="changeStatsZoom('month')" id="statsBtnMonth" class="px-2.5 py-1 text-xs font-semibold rounded-lg text-slate-500 transition">Mes</button>
+                        <button onclick="changeStatsZoom('year')" id="statsBtnYear" class="px-2.5 py-1 text-xs font-semibold rounded-lg text-slate-500 transition">Año</button>
+                    </div>
+                </div>
+                <div id="statsChartContainer" class="w-full h-48 relative flex items-center justify-center">
+                    <!-- SVG inyectado -->
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- MENÚ DE NAVEGACIÓN INFERIOR (Estilo WhatsApp/Instagram) -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-100 px-6 py-3 flex justify-around items-center z-40 max-w-md mx-auto">
+        <button onclick="switchTab('habits')" id="navBtnHabits" class="flex flex-col items-center gap-1 text-indigo-600 transition">
+            <span class="text-xl">📋</span>
+            <span class="text-[10px] font-bold">Hábitos</span>
+        </button>
+        <button onclick="switchTab('stats')" id="navBtnStats" class="flex flex-col items-center gap-1 text-slate-400 transition">
+            <span class="text-xl">📈</span>
+            <span class="text-[10px] font-semibold">Estadísticas</span>
+        </button>
+    </nav>
+
+    <!-- MODAL CREAR / EDITAR HÁBITO -->
+    <div id="habitModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs hidden z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-xl border border-slate-100 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold" id="modalTitle">Nuevo Hábito</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 p-1">✕</button>
+            </div>
+            <form id="habitForm" onsubmit="saveHabit(event)" class="space-y-4">
+                <input type="hidden" id="habitId">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Nombre del hábito</label>
+                    <input type="text" id="habitName" required placeholder="Ej: Beber agua, Leer..." class="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Emoji</label>
+                        <input type="text" id="habitEmoji" value="✨" required class="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm text-center focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Categoría</label>
+                        <select id="habitCategory" class="w-full px-3 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="Salud">Salud</option>
+                            <option value="Estudio">Estudio</option>
+                            <option value="Productividad">Productividad</option>
+                            <option value="Personal">Personal</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Color Pastel</label>
+                    <div class="grid grid-cols-6 gap-2" id="colorPickerContainer">
+                        <button type="button" onclick="selectColor('#fed7aa')" class="w-10 h-10 rounded-full bg-[#fed7aa] border-2 border-transparent transition color-btn" data-color="#fed7aa"></button>
+                        <button type="button" onclick="selectColor('#bbf7d0')" class="w-10 h-10 rounded-full bg-[#bbf7d0] border-2 border-transparent transition color-btn" data-color="#bbf7d0"></button>
+                        <button type="button" onclick="selectColor('#bae6fd')" class="w-10 h-10 rounded-full bg-[#bae6fd] border-2 border-transparent transition color-btn" data-color="#bae6fd"></button>
+                        <button type="button" onclick="selectColor('#e9d5ff')" class="w-10 h-10 rounded-full bg-[#e9d5ff] border-2 border-transparent transition color-btn" data-color="#e9d5ff"></button>
+                        <button type="button" onclick="selectColor('#fbcfe8')" class="w-10 h-10 rounded-full bg-[#fbcfe8] border-2 border-transparent transition color-btn" data-color="#fbcfe8"></button>
+                        <button type="button" onclick="selectColor('#fef08a')" class="w-10 h-10 rounded-full bg-[#fef08a] border-2 border-transparent transition color-btn" data-color="#fef08a"></button>
+                    </div>
+                    <input type="hidden" id="habitColor" value="#bbf7d0">
+                </div>
+                <button type="submit" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-2xl shadow-md transition text-sm mt-2">Guardar Hábito</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL AJUSTES DE HÁBITO (CALENDARIO ZOOM, ÉXITO Y NOTIFICACIONES) -->
+    <div id="detailModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs hidden z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-6 shadow-xl border border-slate-100 max-h-[92vh] overflow-y-auto space-y-5">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <span id="detailEmoji" class="text-xl"></span>
+                    <h3 class="text-lg font-bold" id="detailTitle">Ajustes del Hábito</h3>
+                </div>
+                <button onclick="closeDetail()" class="text-slate-400 hover:text-slate-600 p-1">✕</button>
+            </div>
+
+            <!-- Stats Rápidas -->
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-center">
+                    <span class="text-xs text-slate-400 block mb-1">Racha Actual</span>
+                    <span class="text-xl font-bold text-rose-500" id="detailStreak">0 días</span>
+                </div>
+                <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-center">
+                    <span class="text-xs text-slate-400 block mb-1">Éxito este mes</span>
+                    <span class="text-xl font-bold" id="detailSuccessRate">0%</span>
+                </div>
+            </div>
+
+            <!-- Controles de Zoom para Calendario -->
+            <div>
+                <div class="flex justify-between items-center mb-2 bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-400" id="calendarZoomLabel">Vista: Semana</span>
+                    <div class="flex gap-1">
+                        <button onclick="zoomCalendar('in')" id="zoomInBtn" class="px-3 py-1 rounded-xl bg-white text-xs font-semibold shadow-xs disabled:opacity-30" disabled>🔍 Zoom (+)</button>
+                        <button onclick="zoomCalendar('out')" id="zoomOutBtn" class="px-3 py-1 rounded-xl bg-white text-xs font-semibold shadow-xs">🔍 Alejar (-)</button>
+                    </div>
+                </div>
+                <div id="calendarZoomContainer" class="min-h-[180px]"></div>
+            </div>
+
+            <!-- NOTIFICACIONES DEL HÁBITO -->
+            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Notificaciones del Hábito</h4>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-[10px] text-slate-400 mb-1">Hora de aviso</label>
+                        <input type="time" id="habitNotifTime" value="20:00" class="w-full px-3 py-2 bg-white rounded-xl text-xs border border-slate-200">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-slate-400 mb-1">Frecuencia</label>
+                        <select id="habitNotifFreq" class="w-full px-3 py-2 bg-white rounded-xl text-xs border border-slate-200">
+                            <option value="todos">Todos los días</option>
+                            <option value="laborables">Días laborables</option>
+                            <option value="finsemana">Fin de semana</option>
+                        </select>
+                    </div>
+                </div>
+                <button onclick="saveHabitNotification()" class="w-full py-2 bg-indigo-50 text-indigo-600 font-semibold rounded-xl text-xs transition hover:bg-indigo-100">Guardar Recordatorio</button>
+            </div>
+
+            <div class="pt-2 border-t border-slate-100 flex justify-between items-center">
+                <button onclick="deleteCurrentHabit()" class="text-rose-500 text-xs font-semibold hover:underline">Eliminar hábito</button>
+                <button onclick="closeDetail()" class="px-4 py-2 bg-slate-100 text-xs font-semibold rounded-xl">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let habits = JSON.parse(localStorage.getItem('habits_pastel_v3')) || [];
+        let currentFilter = 'todos';
+        let activeTab = 'habits';
+        let activeHabitId = null;
+        let calendarZoomLevel = 'week';
+        let statsZoomLevel = 'week';
+        let selectedYearMonth = { year: new Date().getFullYear(), month: new Date().getMonth() };
+
+        function getFormattedDate(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function init() {
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('currentDateSubtitle').innerText = new Date().toLocaleDateString('es-ES', options);
+            renderHabits();
+            renderStatsChart();
+        }
+
+        function switchTab(tab) {
+            activeTab = tab;
+            document.getElementById('viewHabits').classList.toggle('hidden', tab !== 'habits');
+            document.getElementById('viewStats').classList.toggle('hidden', tab !== 'stats');
+            
+            document.getElementById('navBtnHabits').className = tab === 'habits' ? 'flex flex-col items-center gap-1 text-indigo-600 transition' : 'flex flex-col items-center gap-1 text-slate-400 transition';
+            document.getElementById('navBtnStats').className = tab === 'stats' ? 'flex flex-col items-center gap-1 text-indigo-600 transition' : 'flex flex-col items-center gap-1 text-slate-400 transition';
+            
+            if(tab === 'stats') renderStatsChart();
+        }
+
+        function filterCategory(cat) {
+            currentFilter = cat;
+            document.querySelectorAll('.cat-pill').forEach(btn => {
+                btn.className = btn.innerText.toLowerCase() === cat.toLowerCase() || (cat === 'todos' && btn.innerText === 'Todos')
+                    ? 'cat-pill px-3.5 py-1.5 rounded-full text-xs font-semibold bg-indigo-600 text-white shadow-sm transition whitespace-nowrap'
+                    : 'cat-pill px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white border border-slate-200 text-slate-600 shadow-sm transition whitespace-nowrap';
+            });
+            renderHabits();
+        }
+
+        function renderHabits() {
+            const list = document.getElementById('habitsList');
+            const empty = document.getElementById('emptyState');
+            list.innerHTML = '';
+
+            const filtered = currentFilter === 'todos' ? habits : habits.filter(h => h.category === currentFilter);
+
+            if (filtered.length === 0) {
+                empty.classList.remove('hidden');
+                return;
+            }
+            empty.classList.add('hidden');
+
+            const todayStr = getFormattedDate(new Date());
+
+            filtered.forEach(habit => {
+                if(!habit.logs) habit.logs = {};
+                const isCompletedToday = habit.logs[todayStr] === true;
+                const streaks = calculateStreaks(habit);
+
+                const card = document.createElement('div');
+                card.className = `p-4 rounded-2xl border transition flex items-center justify-between shadow-xs ${
+                    isCompletedToday ? 'border-transparent' : 'bg-white border-slate-100'
+                }`;
+                
+                if(isCompletedToday) {
+                    card.style.backgroundColor = habit.color;
+                    card.style.color = '#1e293b';
+                }
+
+                card.innerHTML = `
+                    <div class="flex items-center gap-3 flex-1 cursor-pointer" onclick="toggleToday('${habit.id}')">
+                        <span class="text-2xl">${habit.emoji}</span>
+                        <div>
+                            <h2 class="font-bold text-sm">${habit.name}</h2>
+                            <div class="flex items-center gap-2 mt-0.5 text-xs opacity-90">
+                                <span class="font-bold text-rose-500">🔥 ${streaks.current} días</span>
+                                <span>•</span>
+                                <span>${habit.category}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="openDetail('${habit.id}')" class="p-2 rounded-xl hover:bg-black/5 transition text-base font-bold">
+                        ⋮
+                    </button>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        function toggleToday(id) {
+            const todayStr = getFormattedDate(new Date());
+            const habit = habits.find(h => h.id === id);
+            if(!habit) return;
+            if(!habit.logs) habit.logs = {};
+            habit.logs[todayStr] = !habit.logs[todayStr];
+            saveAndRefresh();
+        }
+
+        function calculateStreaks(habit) {
+            let current = 0;
+            let max = 0;
+            let tempMax = 0;
+            let d = new Date();
+            
+            while(true) {
+                const dateStr = getFormattedDate(d);
+                if(habit.logs && habit.logs[dateStr]) {
+                    current++;
+                    d.setDate(d.getDate() - 1);
+                } else {
+                    if(current === 0 && dateStr === getFormattedDate(new Date())) {
+                        d.setDate(d.getDate() - 1);
+                        const yesterdayStr = getFormattedDate(d);
+                        if(habit.logs && habit.logs[yesterdayStr]) {
+                            d.setDate(d.getDate() - 1);
+                            continue;
+                        }
+                    }
+                    break;
+                }
+            }
+
+            for(let key in habit.logs) {
+                if(habit.logs[key]) {
+                    tempMax++;
+                    if(tempMax > max) max = tempMax;
+                } else {
+                    tempMax = 0;
+                }
+            }
+            if(current > max) max = current;
+
+            return { current, max };
+        }
+
+        function changeStatsZoom(level) {
+            statsZoomLevel = level;
+            ['week', 'month', 'year'].forEach(l => {
+                const btn = document.getElementById(`statsBtn${l.charAt(0).toUpperCase() + l.slice(1)}`);
+                btn.className = l === level ? "px-2.5 py-1 text-xs font-semibold rounded-lg bg-white shadow-xs transition" : "px-2.5 py-1 text-xs font-semibold rounded-lg text-slate-500 transition";
+            });
+            renderStatsChart();
+        }
+
+        function renderStatsChart() {
+            const container = document.getElementById('statsChartContainer');
+            if(!container) return;
+            container.innerHTML = '';
+
+            if(habits.length === 0) {
+                container.innerHTML = `<span class="text-xs text-slate-400">Sin hábitos para mostrar estadísticas</span>`;
+                return;
+            }
+
+            const width = 340;
+            const height = 150;
+            let pointsCount = statsZoomLevel === 'week' ? 7 : (statsZoomLevel === 'month' ? 30 : 12);
+
+            let svg = `<svg viewBox="0 0 ${width} ${height}" class="w-full h-full overflow-visible">`;
+            for(let i=0; i<3; i++) {
+                const y = 20 + i * 45;
+                svg += `<line x1="20" y1="${y}" x2="${width-10}" y2="${y}" stroke="currentColor" stroke-opacity="0.08" stroke-dasharray="3"/>`;
+            }
+
+            const now = new Date();
+            habits.forEach(habit => {
+                let coords = [];
+                for(let i = pointsCount - 1; i >= 0; i--) {
+                    let d = new Date(now);
+                    let active = 0;
+                    if(statsZoomLevel === 'week' || statsZoomLevel === 'month') {
+                        d.setDate(d.getDate() - i);
+                        const dStr = getFormattedDate(d);
+                        active = habit.logs && habit.logs[dStr] ? 1 : 0;
+                    } else if(statsZoomLevel === 'year') {
+                        d.setMonth(d.getMonth() - i);
+                        let mDone = 0;
+                        const daysInM = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+                        for(let day=1; day<=daysInM; day++) {
+                            const dStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                            if(habit.logs && habit.logs[dStr]) mDone++;
+                        }
+                        active = mDone / daysInM;
+                    }
+
+                    const x = 30 + ((pointsCount - 1 - i) / (pointsCount - 1 || 1)) * (width - 45);
+                    const y = (height - 25) - (active * (height - 40));
+                    coords.push({x, y});
+                }
+
+                if(coords.length > 0) {
+                    let pathD = `M ${coords[0].x} ${coords[0].y}`;
+                    for(let c=1; c<coords.length; c++) pathD += ` L ${coords[c].x} ${coords[c].y}`;
+                    svg += `<path d="${pathD}" fill="none" stroke="${habit.color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
+                    coords.forEach(pt => svg += `<circle cx="${pt.x}" cy="${pt.y}" r="3.5" fill="${habit.color}"/>`);
+                }
+            });
+            svg += `</svg>`;
+            container.innerHTML = svg;
+        }
+
+        function zoomCalendar(direction) {
+            if(direction === 'out') {
+                if(calendarZoomLevel === 'week') calendarZoomLevel = 'month';
+                else if(calendarZoomLevel === 'month') calendarZoomLevel = 'year';
+            } else {
+                if(calendarZoomLevel === 'year') calendarZoomLevel = 'month';
+                else if(calendarZoomLevel === 'month') calendarZoomLevel = 'week';
+            }
+            renderDetailViews();
+        }
+
+        function openDetail(id) {
+            activeHabitId = id;
+            calendarZoomLevel = 'week';
+            selectedYearMonth = { year: new Date().getFullYear(), month: new Date().getMonth() };
+            
+            const habit = habits.find(h => h.id === id);
+            if(habit && habit.notification) {
+                document.getElementById('habitNotifTime').value = habit.notification.time || '20:00';
+                document.getElementById('habitNotifFreq').value = habit.notification.freq || 'todos';
+            }
+
+            renderDetailViews();
+            document.getElementById('detailModal').classList.remove('hidden');
+        }
+
+        function closeDetail() {
+            document.getElementById('detailModal').classList.add('hidden');
+            activeHabitId = null;
+        }
+
+        function renderDetailViews() {
+            const habit = habits.find(h => h.id === activeHabitId);
+            if(!habit) return;
+
+            document.getElementById('detailEmoji').innerText = habit.emoji;
+            document.getElementById('detailTitle').innerText = habit.name;
+
+            const streaks = calculateStreaks(habit);
+            document.getElementById('detailStreak').innerText = `${streaks.current} días`;
+
+            const now = new Date();
+            const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+            let completedThisMonth = 0;
+            let passedDays = Math.min(now.getDate(), daysInMonth);
+            for(let i=1; i<=passedDays; i++) {
+                const dStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+                if(habit.logs && habit.logs[dStr]) completedThisMonth++;
+            }
+            const rate = passedDays > 0 ? Math.round((completedThisMonth / passedDays) * 100) : 0;
+            document.getElementById('detailSuccessRate').innerText = `${rate}%`;
+
+            document.getElementById('zoomInBtn').disabled = calendarZoomLevel === 'week';
+            document.getElementById('zoomOutBtn').disabled = calendarZoomLevel === 'year';
+            
+            const labels = { week: 'Vista: Semana', month: 'Vista: Mes', year: 'Vista: Año' };
+            document.getElementById('calendarZoomLabel').innerText = labels[calendarZoomLevel];
+
+            const container = document.getElementById('calendarZoomContainer');
+            container.innerHTML = '';
+
+            if(calendarZoomLevel === 'week') {
+                const weekGrid = document.createElement('div');
+                weekGrid.className = 'grid grid-cols-7 gap-1 text-center';
+                const curr = new Date();
+                const firstDayOfWeek = new Date(curr.setDate(curr.getDate() - curr.getDay() + 1));
+                
+                for(let i=0; i<7; i++) {
+                    const d = new Date(firstDayOfWeek);
+                    d.setDate(firstDayOfWeek.getDate() + i);
+                    const dStr = getFormattedDate(d);
+                    const isFuture = d > new Date();
+                    const isDone = habit.logs && habit.logs[dStr];
+
+                    const btn = document.createElement('button');
+                    btn.className = `p-2 rounded-xl text-xs font-semibold flex flex-col items-center gap-1 transition ${
+                        isFuture ? 'opacity-30 cursor-not-allowed bg-slate-100' : 'hover:scale-105'
+                    }`;
+                    if(isDone) {
+                        btn.style.backgroundColor = habit.color;
+                        btn.style.color = '#1e293b';
+                    } else if(!isFuture) {
+                        btn.className += ' bg-slate-100 text-slate-600';
+                    }
+                    btn.innerHTML = `<span>${['L','M','X','J','V','S','D'][i]}</span><span class="text-[10px]">${d.getDate()}</span>`;
+                    if(!isFuture) {
+                        btn.onclick = () => {
+                            if(!habit.logs) habit.logs = {};
+                            habit.logs[dStr] = !habit.logs[dStr];
+                            saveAndRefresh();
+                        };
+                    }
+                    weekGrid.appendChild(btn);
+                }
+                container.appendChild(weekGrid);
+            } 
+            else if(calendarZoomLevel === 'month') {
+                const monthNames = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = `
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-bold text-slate-500">${monthNames[selectedYearMonth.month]} ${selectedYearMonth.year}</span>
+                        <div class="flex gap-1">
+                            <button onclick="changeMonth(-1)" class="p-1 rounded bg-slate-100 text-xs">◀</button>
+                            <button onclick="changeMonth(1)" class="p-1 rounded bg-slate-100 text-xs">▶</button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-7 gap-1 text-center text-[10px] text-slate-400 mb-1">
+                        <span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span>
+                    </div>
+                    <div class="grid grid-cols-7 gap-1 text-center" id="monthGridView"></div>
+                `;
+                container.appendChild(wrapper);
+
+                const monthGrid = wrapper.querySelector('#monthGridView');
+                const firstDayIndex = new Date(selectedYearMonth.year, selectedYearMonth.month, 1).getDay();
+                const offset = firstDayIndex === 0 ? 6 : firstDayIndex - 1;
+                const totalDays = new Date(selectedYearMonth.year, selectedYearMonth.month + 1, 0).getDate();
+
+                for(let i=0; i<offset; i++) monthGrid.appendChild(document.createElement('div'));
+
+                for(let day=1; day<=totalDays; day++) {
+                    const d = new Date(selectedYearMonth.year, selectedYearMonth.month, day);
+                    const dStr = getFormattedDate(d);
+                    const isFuture = d > new Date();
+                    const isDone = habit.logs && habit.logs[dStr];
+
+                    const dayEl = document.createElement('button');
+                    dayEl.className = `aspect-square rounded-lg text-xs flex items-center justify-center font-medium transition ${
+                        isFuture ? 'opacity-30 cursor-not-allowed bg-slate-100' : 'hover:scale-110'
+                    }`;
+                    if(isDone) {
+                        dayEl.style.backgroundColor = habit.color;
+                        dayEl.style.color = '#1e293b';
+                    } else if(!isFuture) {
+                        dayEl.className += ' bg-slate-100 text-slate-600';
+                    }
+                    dayEl.innerText = day;
+
+                    if(!isFuture) {
+                        dayEl.onclick = () => {
+                            if(!habit.logs) habit.logs = {};
+                            habit.logs[dStr] = !habit.logs[dStr];
+                            saveAndRefresh();
+                        };
+                    }
+                    monthGrid.appendChild(dayEl);
+                }
+            }
+            else if(calendarZoomLevel === 'year') {
+                const yearGrid = document.createElement('div');
+                yearGrid.className = 'grid grid-cols-3 gap-2';
+                const mNames = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+                for(let m=0; m<12; m++) {
+                    const mEl = document.createElement('div');
+                    mEl.className = 'text-xs text-center p-2 bg-slate-50 rounded-xl border border-slate-100';
+                    let mDone = 0;
+                    const daysInM = new Date(selectedYearMonth.year, m + 1, 0).getDate();
+                    for(let day=1; day<=daysInM; day++) {
+                        const dStr = `${selectedYearMonth.year}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                        if(habit.logs && habit.logs[dStr]) mDone++;
+                    }
+                    mEl.innerHTML = `<div class="font-bold mb-1">${mNames[m]}</div><div class="font-semibold" style="color:${habit.color}">${mDone}/${daysInM}</div>`;
+                    yearGrid.appendChild(mEl);
+                }
+                container.appendChild(yearGrid);
+            }
+        }
+
+        function changeMonth(dir) {
+            selectedYearMonth.month += dir;
+            if(selectedYearMonth.month > 11) { selectedYearMonth.month = 0; selectedYearMonth.year++; }
+            if(selectedYearMonth.month < 0) { selectedYearMonth.month = 11; selectedYearMonth.year--; }
+            renderDetailViews();
+        }
+
+        function saveHabitNotification() {
+            const habit = habits.find(h => h.id === activeHabitId);
+            if(!habit) return;
+            
+            const time = document.getElementById('habitNotifTime').value;
+            const freq = document.getElementById('habitNotifFreq').value;
+            
+            habit.notification = { time, freq };
+            saveAndRefresh();
+
+            if ("Notification" in window) {
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") {
+                        alert(`¡Recordatorio guardado para "${habit.name}" a las ${time}!`);
+                    } else {
+                        alert("Has guardado el recordatorio, pero debes permitir notificaciones en el navegador.");
+                    }
+                });
+            }
+        }
+
+        function deleteCurrentHabit() {
+            if(confirm('¿Seguro que quieres eliminar este hábito?')) {
+                habits = habits.filter(h => h.id !== activeHabitId);
+                saveAndRefresh();
+                closeDetail();
+            }
+        }
+
+        function openModal() {
+            document.getElementById('habitModal').classList.remove('hidden');
+            document.getElementById('modalTitle').innerText = 'Nuevo Hábito';
+            document.getElementById('habitForm').reset();
+            document.getElementById('habitId').value = '';
+            selectColor('#bbf7d0');
+        }
+
+        function closeModal() {
+            document.getElementById('habitModal').classList.add('hidden');
+        }
+
+        function selectColor(hex) {
+            document.getElementById('habitColor').value = hex;
+            document.querySelectorAll('.color-btn').forEach(btn => {
+                if(btn.dataset.color === hex) {
+                    btn.classList.add('border-slate-800', 'scale-125', 'ring-2', 'ring-offset-2', 'ring-indigo-400');
+                } else {
+                    btn.classList.remove('border-slate-800', 'scale-125', 'ring-2', 'ring-offset-2', 'ring-indigo-400');
+                }
+            });
+        }
+
+        function saveHabit(e) {
+            e.preventDefault();
+            const name = document.getElementById('habitName').value;
+            const emoji = document.getElementById('habitEmoji').value;
+            const category = document.getElementById('habitCategory').value;
+            const color = document.getElementById('habitColor').value;
+
+            habits.push({
+                id: Date.now().toString(),
+                name, emoji, category, color,
+                logs: {},
+                notification: { time: '20:00', freq: 'todos' }
+            });
+            saveAndRefresh();
+            closeModal();
+        }
+
+        function saveAndRefresh() {
+            localStorage.setItem('habits_pastel_v3', JSON.stringify(habits));
+            renderHabits();
+            if(activeHabitId) renderDetailViews();
+            if(activeTab === 'stats') renderStatsChart();
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
